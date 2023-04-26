@@ -183,7 +183,27 @@ int main(void)
 #ifdef CURLPIPE_MULTIPLEX
   curl_multi_setopt(multi_handle, CURLMOPT_PIPELINING, CURLPIPE_MULTIPLEX);
 #endif
+<<<<<<< Updated upstream
 
+=======
+  int numURLs;
+  printf("%s\n", "Enter number of URLs to crawl: ");
+  scanf("%d", &numURLs);
+
+  char urls[numURLs][100];
+
+  for (int i=0; i < numURLs; i++) {
+      printf("Enter URL #[%d]: ", i);
+      scanf("%s", urls[i]);
+  }
+  for (int i=0; i < numURLs; i++) {
+    printf("%s\n", urls[i]);
+  }
+  pthread_t tid[numURLs];
+  for (int i=0; i < numURLs; i++) {
+
+  }
+>>>>>>> Stashed changes
   /* sets html start page */
   curl_multi_add_handle(multi_handle, make_handle(start_page));
 
