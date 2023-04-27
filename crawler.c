@@ -14,6 +14,9 @@ char *start_page = "https://classic.warcraftlogs.com/character/id/74340618";
 #include <math.h>
 #include <signal.h>
 
+// Set a cap on URL length to minimize impacts to performance
+#define MAX_URL_LENGTH 1500
+
 int pending_interrupt = 0;
 void sighandler(int dummy)
 {
@@ -183,9 +186,7 @@ int main(void)
 #ifdef CURLPIPE_MULTIPLEX
   curl_multi_setopt(multi_handle, CURLMOPT_PIPELINING, CURLPIPE_MULTIPLEX);
 #endif
-<<<<<<< Updated upstream
 
-=======
   int numURLs;
   printf("%s\n", "Enter number of URLs to crawl: ");
   scanf("%d", &numURLs);
@@ -203,7 +204,67 @@ int main(void)
   for (int i=0; i < numURLs; i++) {
 
   }
->>>>>>> Stashed changes
+/*
+
+  // Ask user which file contains the URLs
+  printf("\n\nPlease enter the file name. Be sure to include the extension (ex: .txt).\n\n");
+
+  // Store the user's file name in a char array
+  char inputFileName[100];
+
+  // Prompt the user to enter the file name
+  scanf("%s", inputFileName);
+
+  // Open the file for reading
+  FILE *inputFile = fopen(inputFileName, "r");
+
+  for (i = 0; i < numURLs; i++)
+  {
+      // URL Memory Allocation
+      urls[i] = malloc(MAX_URL_LENGTH);
+
+      // Handle allocation errors
+      if (urls[i] == NULL)
+      {
+          // Print out proper error message
+          printf("\n\nMemory Allocation Error\n\n");
+      }
+
+      // URL Buffer of 100
+      char bufferURLs[100];
+  }
+  */
+  // Ask user which file contains the URLs
+  printf("\n\nPlease enter the file name. Be sure to include the extension (ex: .txt).\n\n");
+
+  // Store the user's file name in a char array
+  char inputFileName[100];
+
+  // Prompt the user to enter the file name
+  scanf("%s", inputFileName);
+
+  FILE* file = fopen(inputFileName, "r");
+  if (file == NULL) {
+        printf("\n\nERROR: File could not be opened\n\n");
+        exit(1);
+    }
+
+
+    int i = 0;
+    while (fgets(urls[i], MAX_URL_LENGTH, file) != NULL) {
+        urls[i][strcspn(urls[i], "\n")] = '\0';
+        i++;
+        if (i >= 100) {
+            break;
+        }
+    }
+
+    fclose(file);
+
+    for (int j = 0; j < i; j++) {
+        printf("%s\n", urls[j]);
+    }
+
   /* sets html start page */
   curl_multi_add_handle(multi_handle, make_handle(start_page));
 
@@ -225,6 +286,7 @@ int main(void)
         memory *mem;
         curl_easy_getinfo(handle, CURLINFO_PRIVATE, &mem);
         curl_easy_getinfo(handle, CURLINFO_EFFECTIVE_URL, &url);
+
         if(m->data.result == CURLE_OK) {
           long res_status;
           curl_easy_getinfo(handle, CURLINFO_RESPONSE_CODE, &res_status);
@@ -241,6 +303,12 @@ int main(void)
           }
           else {
             printf("[%d] HTTP %d: %s\n", complete, (int) res_status, url);
+
+            FILE* fp = fopen("visited.txt", "a");
+            fprintf("[%d] HTTP %d: %s\n", complete, (int) res_status, url);
+            fclose(fp);
+
+
           }
         }
         else {
@@ -253,6 +321,7 @@ int main(void)
         complete++;
         pending--;
       }
+
     }
   }
   curl_multi_cleanup(multi_handle);
