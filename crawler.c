@@ -15,7 +15,8 @@ char *start_page = "https://classic.warcraftlogs.com/character/id/74340618";
 #include <signal.h>
 
 // Set a cap on URL length to minimize impacts to performance
-#define MAX_URL_LENGTH 1500
+#define MAX_URL_LENGTH 100
+#define MAX_URLS 10
 
 int pending_interrupt = 0;
 void sighandler(int dummy)
@@ -187,23 +188,23 @@ int main(void)
   curl_multi_setopt(multi_handle, CURLMOPT_PIPELINING, CURLPIPE_MULTIPLEX);
 #endif
 
-  int numURLs;
-  printf("%s\n", "Enter number of URLs to crawl: ");
-  scanf("%d", &numURLs);
+  // int numURLs;
+  // printf("%s\n", "Enter number of URLs to crawl: ");
+  // scanf("%d", &numURLs);
 
-  char urls[numURLs][100];
+  // char urls[numURLs][100];
 
-  for (int i=0; i < numURLs; i++) {
-      printf("Enter URL #[%d]: ", i);
-      scanf("%s", urls[i]);
-  }
-  for (int i=0; i < numURLs; i++) {
-    printf("%s\n", urls[i]);
-  }
-  pthread_t tid[numURLs];
-  for (int i=0; i < numURLs; i++) {
+  // for (int i=0; i < numURLs; i++) {
+  //     printf("Enter URL #[%d]: ", i);
+  //     scanf("%s", urls[i]);
+  // }
+  // for (int i=0; i < numURLs; i++) {
+  //   printf("%s\n", urls[i]);
+  // }
+  // pthread_t tid[numURLs];
+  // for (int i=0; i < numURLs; i++) {
 
-  }
+  // }
 /*
 
   // Ask user which file contains the URLs
@@ -234,6 +235,8 @@ int main(void)
       char bufferURLs[100];
   }
   */
+  char urls[MAX_URLS][100];
+
   // Ask user which file contains the URLs
   printf("\n\nPlease enter the file name. Be sure to include the extension (ex: .txt).\n\n");
 
@@ -242,6 +245,7 @@ int main(void)
 
   // Prompt the user to enter the file name
   scanf("%s", inputFileName);
+  printf("%s\n", inputFileName);
 
   FILE* file = fopen(inputFileName, "r");
   if (file == NULL) {
@@ -249,12 +253,11 @@ int main(void)
         exit(1);
     }
 
-
     int i = 0;
     while (fgets(urls[i], MAX_URL_LENGTH, file) != NULL) {
         urls[i][strcspn(urls[i], "\n")] = '\0';
         i++;
-        if (i >= 100) {
+        if (i >= 10) {
             break;
         }
     }
@@ -263,10 +266,13 @@ int main(void)
 
     for (int j = 0; j < i; j++) {
         printf("%s\n", urls[j]);
+        curl_multi_add_handle(multi_handle, make_handle(urls[j]));
     }
-
+    int check = 0;
+    printf("%s\n", urls[check]);
+    //char *page = urls[check];
   /* sets html start page */
-  curl_multi_add_handle(multi_handle, make_handle(start_page));
+  //curl_multi_add_handle(multi_handle, make_handle(page));
 
   int msgs_left;
   int pending = 0;
@@ -288,12 +294,14 @@ int main(void)
         curl_easy_getinfo(handle, CURLINFO_EFFECTIVE_URL, &url);
 
         if(m->data.result == CURLE_OK) {
+          FILE* fp = fopen("visited.txt", "a");
+
           long res_status;
           curl_easy_getinfo(handle, CURLINFO_RESPONSE_CODE, &res_status);
           if(res_status == 200) {
             char *ctype;
             curl_easy_getinfo(handle, CURLINFO_CONTENT_TYPE, &ctype);
-            printf("[%d] HTTP 200 (%s): %s\n", complete, ctype, url);
+            fprintf(fp, "[%d] HTTP 200 (%s): %s\n", complete, ctype, url);
             if(is_html(ctype) && mem->size > 100) {
               if(pending < max_requests && (complete + pending) < max_total) {
                 pending += follow_links(multi_handle, mem, url);
@@ -302,10 +310,9 @@ int main(void)
             }
           }
           else {
-            printf("[%d] HTTP %d: %s\n", complete, (int) res_status, url);
+            fprintf(fp, "[%d] HTTP %d: %s\n", complete, (int) res_status, url);
 
-            FILE* fp = fopen("visited.txt", "a");
-            fprintf("[%d] HTTP %d: %s\n", complete, (int) res_status, url);
+            fprintf(fp, "[%d] HTTP %d: %s\n", complete, (int) res_status, url);
             fclose(fp);
 
 
