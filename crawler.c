@@ -3,7 +3,7 @@ int max_total = 200;
 int max_requests = 50;
 int max_link_per_page = 5;
 int follow_relative_links = 0;
-char *start_page = "https://classic.warcraftlogs.com/character/id/74340618";
+
 
 #include <libxml/HTMLparser.h>
 #include <libxml/xpath.h>
@@ -16,6 +16,7 @@ char *start_page = "https://classic.warcraftlogs.com/character/id/74340618";
 
 // Set a cap on URL length to minimize impacts to performance
 #define MAX_URL_LENGTH 1500
+#define MAX_URLS 1000
 
 int pending_interrupt = 0;
 void sighandler(int dummy)
@@ -230,23 +231,34 @@ int main(void)
   // Prompt the user to enter the file name
   scanf("%s", inputFileName);
 
-  FILE* file = fopen(inputFileName, "r");
-  if (file == NULL) {
-        printf("\n\nERROR: File could not be opened\n\n");
-        exit(1);
+
+
+
+    FILE* fp = fopen(inputFileName, "r");
+    if (fp == NULL) {
+        printf("Error: could not open file\n");
+        return 1;
     }
-
-
     int i = 0;
-    while (fgets(urls[i], MAX_URL_LENGTH, file) != NULL) {
-        urls[i][strcspn(urls[i], "\n")] = '\0';
-        i++;
-        if (i >= 100) {
-            break;
+    char buffer[MAX_URL_LENGTH];
+    while (fgets(buffer, MAX_URL_LENGTH, fp) != NULL && i < MAX_URLS) {
+        size_t len = strlen(buffer);
+        if (len > 0 && buffer[len - 1] == '\n') {
+            buffer[len - 1] = '\0'; // remove trailing newline
+            len--; // reduce length by 1
         }
+        if (len > 0 && buffer[len - 1] == '\r') {
+            buffer[len - 1] = '\0'; // remove trailing EOF character on Windows
+        }
+        strcpy(urls[i], buffer);
+        i++;
     }
+    fclose(fp);
 
-    fclose(file);
+    char *start_page = urls[0];
+
+
+
 
     for (int j = 0; j < i; j++) {
         printf("%s\n", urls[j]);
@@ -306,7 +318,7 @@ int main(void)
           }
         }
         else {
-          printf("[%d] Connection failure: %s\n", complete, url);
+        printf("[%d] Connection failure: %s\n", complete, url);
         }
         curl_multi_remove_handle(multi_handle, handle);
         curl_easy_cleanup(handle);
