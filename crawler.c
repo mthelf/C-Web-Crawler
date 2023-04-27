@@ -12,11 +12,15 @@ int follow_relative_links = 0;
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <pthread.h>
 #include <signal.h>
 
 // Set a cap on URL length to minimize impacts to performance
 #define MAX_URL_LENGTH 1500
 #define MAX_URLS 1000
+#define RED "\x1b[31m"
+#define NORMAL "\x1b[m"
+#define GREEN "\x1b[32m"
 
 int pending_interrupt = 0;
 void sighandler(int dummy)
@@ -168,10 +172,9 @@ int is_html(char *ctype)
   return ctype != NULL && strlen(ctype) > 10 && strstr(ctype, "text/html");
 }
 
-int main(void)
-{
 
-    /*sets up a multi-handle to perform multiple HTTP requests in parallel using libcurl.
+void *init_curl(void *start_page) {
+      /*sets up a multi-handle to perform multiple HTTP requests in parallel using libcurl.
     It sets the maximum number of total connections to max_con and the maximum number of connections per host to 6.
     The signal function sets up a signal handler for SIGINT, which is used to interrupt the program with Ctrl+C.
     The LIBXML_TEST_VERSION macro initializes the libxml library.
@@ -188,82 +191,7 @@ int main(void)
   curl_multi_setopt(multi_handle, CURLMOPT_PIPELINING, CURLPIPE_MULTIPLEX);
 #endif
 
-  int numURLs = 10;
-  char urls[numURLs][100];
-
-
-/*
-
-  // Ask user which file contains the URLs
-  printf("\n\nPlease enter the file name. Be sure to include the extension (ex: .txt).\n\n");
-
-  // Store the user's file name in a char array
-  char inputFileName[100];
-
-  // Prompt the user to enter the file name
-  scanf("%s", inputFileName);
-
-  // Open the file for reading
-  FILE *inputFile = fopen(inputFileName, "r");
-
-  for (i = 0; i < numURLs; i++)
-  {
-      // URL Memory Allocation
-      urls[i] = malloc(MAX_URL_LENGTH);
-
-      // Handle allocation errors
-      if (urls[i] == NULL)
-      {
-          // Print out proper error message
-          printf("\n\nMemory Allocation Error\n\n");
-      }
-
-      // URL Buffer of 100
-      char bufferURLs[100];
-  }
-  */
-  // Ask user which file contains the URLs
-  printf("\n\nPlease enter the file name. Be sure to include the extension (ex: .txt).\n\n");
-
-  // Store the user's file name in a char array
-  char inputFileName[100];
-
-  // Prompt the user to enter the file name
-  scanf("%s", inputFileName);
-
-
-
-
-    FILE* fp = fopen(inputFileName, "r");
-    if (fp == NULL) {
-        printf("Error: could not open file\n");
-        return 1;
-    }
-    int i = 0;
-    char buffer[MAX_URL_LENGTH];
-    while (fgets(buffer, MAX_URL_LENGTH, fp) != NULL && i < MAX_URLS) {
-        size_t len = strlen(buffer);
-        if (len > 0 && buffer[len - 1] == '\n') {
-            buffer[len - 1] = '\0'; // remove trailing newline
-            len--; // reduce length by 1
-        }
-        if (len > 0 && buffer[len - 1] == '\r') {
-            buffer[len - 1] = '\0'; // remove trailing EOF character on Windows
-        }
-        strcpy(urls[i], buffer);
-        i++;
-    }
-    fclose(fp);
-
-    char *start_page = urls[0];
-
-
-
-
-    for (int j = 0; j < i; j++) {
-        printf("%s\n", urls[j]);
-    }
-
+  //void *start_page = (void *) start_page;
   /* sets html start page */
   curl_multi_add_handle(multi_handle, make_handle(start_page));
 
@@ -301,7 +229,7 @@ int main(void)
 
 
 
-            printf("[%d] HTTP 200 (%s): %s\n", complete, ctype, url);
+            //printf("[%d] HTTP 200 (%s): %s\n", complete, ctype, url);
             if(is_html(ctype) && mem->size > 100) {
               if(pending < max_requests && (complete + pending) < max_total) {
                 pending += follow_links(multi_handle, mem, url);
@@ -310,15 +238,11 @@ int main(void)
             }
           }
           else {
-            printf("[%d] HTTP %d: %s\n", complete, (int) res_status, url);
-
-
-
-
+            printf(RED"[%d] HTTP %d: %s\n"NORMAL, complete, (int) res_status, url);
           }
         }
         else {
-        printf("[%d] Connection failure: %s\n", complete, url);
+          printf(RED"[%d] Connection failure: %s\n"NORMAL, complete, url);
         }
         curl_multi_remove_handle(multi_handle, handle);
         curl_easy_cleanup(handle);
@@ -332,5 +256,59 @@ int main(void)
   }
   curl_multi_cleanup(multi_handle);
   curl_global_cleanup();
+  printf("\n\n");
+ }
+
+int main(void)
+{
+
+
+
+  int numURLs = 10;
+  char urls[numURLs][100];
+
+
+  // Ask user which file contains the URLs
+  printf("\n\nPlease enter the file name. Be sure to include the extension (ex: .txt): ");
+
+  // Store the user's file name in a char array
+  char inputFileName[100];
+
+  // Prompt the user to enter the file name
+  scanf("%s", inputFileName);
+
+
+    FILE* fp = fopen(inputFileName, "r");
+    if (fp == NULL) {
+        printf("Error: could not open file\n");
+        return 1;
+    }
+    int i = 0;
+    char buffer[MAX_URL_LENGTH];
+    while (fgets(buffer, MAX_URL_LENGTH, fp) != NULL && i < MAX_URLS) {
+        size_t len = strlen(buffer);
+        if (len > 0 && buffer[len - 1] == '\n') {
+            buffer[len - 1] = '\0'; // remove trailing newline
+            len--; // reduce length by 1
+        }
+        if (len > 0 && buffer[len - 1] == '\r') {
+            buffer[len - 1] = '\0'; // remove trailing EOF character on Windows
+        }
+        strcpy(urls[i], buffer);
+        i++;
+    }
+    fclose(fp);
+
+    pthread_t tid[i];
+
+    for (int j = 0; j < i; j++) {
+        char *page = urls[j];
+        printf(GREEN"STARTING CRAWL ON: %s\n\n"NORMAL, page);
+
+        printf("HTTP and Connection Errors: \n");
+        init_curl(page);
+    }
+
+    printf("Crawl complete!\n");
   return 0;
 }
